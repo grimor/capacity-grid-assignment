@@ -1,6 +1,53 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
+
 :root {
   color-scheme: light dark;
   font-family: ui-sans-serif, system-ui, sans-serif;
+
+  /* Opaque, so sticky cells hide what scrolls beneath their borders. */
+  --line: light-dark(#d7d8dc, #3a3c42);
+  --grid-muted: light-dark(#686b72, #a6a8ae);
+  --muted: oklch(0.97 0 0);
+  --over-fg: light-dark(#b42318, #ff8f85);
+  --over-bg: light-dark(#fde4e1, #4d1c1a);
+  --bar: light-dark(#a9bdd9, #4a6690);
+  --current-bg: light-dark(#eef3fb, #1b2535);
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
 }
 
 body {
@@ -10,23 +57,295 @@ body {
 
 h1 {
   font-size: 1.4rem;
-  margin: 0 0 0.25rem;
+  margin: 0 0 1rem;
 }
 
-.range {
-  margin: 0 0 1.5rem;
-  opacity: 0.6;
-  font-variant-numeric: tabular-nums;
+button {
+  font: inherit;
 }
 
-table {
-  border-collapse: collapse;
-  font-variant-numeric: tabular-nums;
+/* Range controls */
+
+.range-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 2rem;
+  margin-bottom: 1rem;
 }
 
-th,
-td {
-  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+.week-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.date-picker-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
   padding: 0.5rem 0.75rem;
-  text-align: left;
+  border-top: 1px solid var(--line);
+}
+
+.hint {
+  color: var(--grid-muted);
+  font-size: 0.85rem;
+}
+
+/* Summary and notices */
+
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.5rem;
+  margin-bottom: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.over-count {
+  color: var(--over-fg);
+}
+
+.loading {
+  color: var(--grid-muted);
+}
+
+.notice {
+  margin: 1rem 0;
+}
+
+.notice.error {
+  color: var(--over-fg);
+}
+
+/* Grid. Separate borders, because collapsed ones scroll away from sticky cells. */
+
+.grid-scroll {
+  max-width: 100%;
+  border: 1px solid var(--line);
+  transition: opacity 150ms;
+}
+
+.grid-scroll > [data-slot="table-container"] {
+  max-width: 100%;
+  max-height: 75vh;
+  overflow: auto;
+}
+
+.grid-scroll.stale {
+  opacity: 0.55;
+}
+
+/* Whole-pixel row heights: sticky cells are painted on their own layer, and
+   fractional heights round differently there, misaligning the row lines. */
+.capacity-table {
+  --person-width: 14rem;
+  border-collapse: separate;
+  border-spacing: 0;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.capacity-table th,
+.capacity-table td {
+  border: 0;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 6px 10px;
+  white-space: nowrap;
+  background-color: Canvas;
+}
+
+.capacity-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  vertical-align: top;
+  font-weight: 600;
+}
+
+.capacity-table .person {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  width: var(--person-width);
+  min-width: var(--person-width);
+  max-width: var(--person-width);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.capacity-table .capacity-hours {
+  position: sticky;
+  left: var(--person-width);
+  z-index: 1;
+  text-align: right;
+  border-right: 2px solid var(--line);
+}
+
+.capacity-table thead .person,
+.capacity-table thead .capacity-hours {
+  z-index: 3;
+}
+
+.capacity-table .week {
+  min-width: 4.5rem;
+  text-align: right;
+}
+
+.week-date,
+.week-number,
+.week-over {
+  display: block;
+}
+
+.week-number {
+  color: var(--grid-muted);
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+.week-over {
+  color: var(--over-fg);
+  font-size: 0.8rem;
+}
+
+.capacity-table .current {
+  background-color: var(--current-bg);
+}
+
+/* A cell's bottom edge fills with how much of the week is allocated. */
+.allocation {
+  text-align: right;
+  background-image: linear-gradient(var(--bar), var(--bar));
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  background-size: calc(var(--load) * 100%) 3px;
+}
+
+.allocation.empty {
+  color: var(--grid-muted);
+}
+
+.capacity-table .allocation.over {
+  --bar: var(--over-fg);
+  background-color: var(--over-bg);
+  color: var(--over-fg);
+  font-weight: 600;
+}
+
+.excess {
+  margin-left: 0.3rem;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+@media (max-width: 600px) {
+  body {
+    padding: 1rem;
+  }
+
+  .capacity-table {
+    --person-width: 9rem;
+  }
+}
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: "Geist Variable", sans-serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
 }

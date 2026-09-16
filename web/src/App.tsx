@@ -1,17 +1,19 @@
+import { useState } from 'react'
 import { CapacityGrid } from './CapacityGrid'
+import { wholeWeeks } from './dates'
 
-// The range the grid loads. Widen it if you want to see more.
-const FROM = '2025-12-29'
-const TO = '2026-01-16'
+// The range the grid opens on: the weeks around the seed's worked examples.
+const INITIAL_RANGE = wholeWeeks('2025-12-29', '2026-01-16')
 
 export function App() {
+  // The page owns the range, so the logged-time timeline that will sit
+  // alongside the grid can follow the same weeks.
+  const [range, setRange] = useState(INITIAL_RANGE)
+
   return (
     <main>
       <h1>Team capacity</h1>
-      <p className="range">
-        {FROM} to {TO}
-      </p>
-      <CapacityGrid from={FROM} to={TO} />
+      <CapacityGrid range={range} onRangeChange={setRange} />
     </main>
   )
 }
