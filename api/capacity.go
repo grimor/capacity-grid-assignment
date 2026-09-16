@@ -156,17 +156,29 @@ allocated AS (
 SELECT
 	p.id,
 	p.name,
-	p.weekly_hours::float8,
+	p.weekly_hours::float8 AS weekly_hours,
 	w.week_start,
-	coalesce(al.hours, 0)::float8
+	coalesce(al.hours, 0)::float8 AS allocated_hours
 FROM people p
 CROSS JOIN weeks w
 LEFT JOIN allocated al ON al.person_id = p.id AND al.week_start = w.week_start
 ORDER BY p.name COLLATE "und-x-icu", p.id, w.week_start
 `
 
+// capacityRow is one row of capacityQuery.
+type capacityRow struct {
+	ID             int       `db:"id"`
+	Name           string    `db:"name"`
+	WeeklyHours    float64   `db:"weekly_hours"`
+	WeekStart      time.Time `db:"week_start"`
+	AllocatedHours float64   `db:"allocated_hours"`
+}
+
 func (s *server) loadCapacity(ctx context.Context, weeks []time.Time) ([]personCapacity, error) {
-	rows, err := s.db.Query(ctx, capacityQuery, weeks)
+	// The pgx driver sends the []time.Time as a date[] for $1. Rows are read
+	// one at a time rather than with SelectContext, so a year of weeks isn't
+	// held in memory twice.
+	rows, err := s.db.QueryxContext(ctx, capacityQuery, weeks)
 	if err != nil {
 		return nil, fmt.Errorf("query: %w", err)
 	}
@@ -174,29 +186,23 @@ func (s *server) loadCapacity(ctx context.Context, weeks []time.Time) ([]personC
 
 	people := []personCapacity{}
 	for rows.Next() {
-		var (
-			id          int
-			name        string
-			weeklyHours float64
-			weekStart   time.Time
-			allocated   float64
-		)
-		if err := rows.Scan(&id, &name, &weeklyHours, &weekStart, &allocated); err != nil {
+		var row capacityRow
+		if err := rows.StructScan(&row); err != nil {
 			return nil, fmt.Errorf("scan: %w", err)
 		}
 		// Rows arrive grouped by person, so a new id starts a new row.
-		if len(people) == 0 || people[len(people)-1].ID != id {
+		if len(people) == 0 || people[len(people)-1].ID != row.ID {
 			people = append(people, personCapacity{
-				ID:          id,
-				Name:        name,
-				WeeklyHours: weeklyHours,
+				ID:          row.ID,
+				Name:        row.Name,
+				WeeklyHours: row.WeeklyHours,
 				Weeks:       make([]weekAllocation, 0, len(weeks)),
 			})
 		}
 		person := &people[len(people)-1]
 		person.Weeks = append(person.Weeks, weekAllocation{
-			WeekStart:      weekStart.Format(time.DateOnly),
-			AllocatedHours: allocated,
+			WeekStart:      row.WeekStart.Format(time.DateOnly),
+			AllocatedHours: row.AllocatedHours,
 		})
 	}
 	if err := rows.Err(); err != nil {

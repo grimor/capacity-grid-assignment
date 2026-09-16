@@ -8,11 +8,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/stdlib" // registers the "pgx" database/sql driver
+	"github.com/jmoiron/sqlx"
 )
 
 type server struct {
-	db *pgxpool.Pool
+	db *sqlx.DB
 }
 
 func main() {
@@ -23,14 +24,19 @@ func main() {
 		dsn = "postgres://capacity:capacity@localhost:5432/capacity?sslmode=disable"
 	}
 
-	db, err := pgxpool.New(ctx, dsn)
+	// Open only checks its arguments; the ping below makes the first connection.
+	db, err := sqlx.Open("pgx", dsn)
 	if err != nil {
 		log.Fatalf("connect: %v", err)
 	}
 	defer db.Close()
+	// database/sql opens connections without limit by default. pgxpool, used
+	// before, capped them at max(4, NumCPU); keep a cap so a burst of requests
+	// can't use up Postgres' connections.
+	db.SetMaxOpenConns(10)
 
 	for i := 0; i < 30; i++ {
-		if err = db.Ping(ctx); err == nil {
+		if err = db.PingContext(ctx); err == nil {
 			break
 		}
 		time.Sleep(time.Second)
@@ -52,7 +58,7 @@ func main() {
 
 func (s *server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	var people int
-	if err := s.db.QueryRow(r.Context(), `SELECT count(*) FROM people`).Scan(&people); err != nil {
+	if err := s.db.GetContext(r.Context(), &people, `SELECT count(*) FROM people`); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
