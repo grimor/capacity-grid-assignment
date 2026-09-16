@@ -221,6 +221,12 @@ button {
   font-size: 0.8rem;
 }
 
+.capacity-table tr.spacer td {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
 .capacity-table .current {
   background-color: var(--current-bg);
 }

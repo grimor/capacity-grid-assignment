@@ -1,6 +1,7 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { createColumnHelper, tableFeatures, useTable } from '@tanstack/react-table'
-import { useMemo, useState, type CSSProperties } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
+import { useMemo, useRef, useState, type CSSProperties } from 'react'
 import { capacityQuery, type CapacityResponse, type PersonCapacity } from './api'
 import { type DateRange, formatLongDate, formatShortDate, isoWeek, startOfWeek, today } from './dates'
 import { CapacityEditor } from './CapacityEditor'
@@ -55,9 +56,11 @@ type TableProps = {
 
 // shadcn's Table supplies the semantic table parts; TanStack Table owns the
 // dynamic columns and row model. A single table keeps the week headings aligned
-// with all 500 people while its container scrolls in both directions.
+// with all 500 people while its container scrolls in both directions. Only the
+// rows in view are rendered; spacer rows stand in for the rest.
 const features = tableFeatures({})
 const columnHelper = createColumnHelper<typeof features, PersonCapacity>()
+const rowHeight = 40
 
 function CapacityTable({ data, overOnly, onOverOnlyChange, loading, stale }: TableProps) {
   const { overPerWeek, overPeople } = useMemo(() => summarize(data), [data])
@@ -105,6 +108,20 @@ function CapacityTable({ data, overOnly, onOverOnlyChange, loading, stale }: Tab
     [data.weekStarts, overPerWeek],
   )
   const table = useTable({ features, data: people, columns, getRowId: (person) => String(person.id) })
+  const rows = table.getRowModel().rows
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    // shadcn's Table wraps the <table> in its own scrolling container.
+    getScrollElement: () => scrollRef.current?.querySelector<HTMLElement>('[data-slot="table-container"]') ?? null,
+    estimateSize: () => rowHeight,
+    getItemKey: (index) => rows[index].id,
+    overscan: 10,
+  })
+  const virtualRows = virtualizer.getVirtualItems()
+  const padTop = virtualRows[0]?.start ?? 0
+  const padBottom = virtualizer.getTotalSize() - (virtualRows.at(-1)?.end ?? 0)
+  const columnCount = table.getAllLeafColumns().length
 
   return (
     <>
@@ -122,11 +139,11 @@ function CapacityTable({ data, overOnly, onOverOnlyChange, loading, stale }: Tab
         </label>
         {loading && <span className="loading">Updating…</span>}
       </div>
-      <div className={stale ? 'grid-scroll stale' : 'grid-scroll'} aria-busy={loading}>
-        <Table className="capacity-table">
+      <div ref={scrollRef} className={stale ? 'grid-scroll stale' : 'grid-scroll'} aria-busy={loading}>
+        <Table className="capacity-table" aria-rowcount={rows.length + 1}>
           <TableHeader>
             {table.getHeaderGroups().map((group) => (
-              <TableRow key={group.id}>
+              <TableRow key={group.id} aria-rowindex={1}>
                 {group.headers.map((header) => {
                   const index = weekIndex.get(header.column.id)
                   return (
@@ -147,40 +164,45 @@ function CapacityTable({ data, overOnly, onOverOnlyChange, loading, stale }: Tab
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id}>
-                {row.getAllCells().map((cell) => {
-                  const index = weekIndex.get(cell.column.id)
-                  if (cell.column.id === 'name') {
+            {padTop > 0 && <tr className="spacer" aria-hidden><td colSpan={columnCount} style={{ height: padTop }} /></tr>}
+            {virtualRows.map(({ index: rowIndex, key }) => {
+              const row = rows[rowIndex]
+              return (
+                <TableRow key={key} aria-rowindex={rowIndex + 2}>
+                  {row.getAllCells().map((cell) => {
+                    const index = weekIndex.get(cell.column.id)
+                    if (cell.column.id === 'name') {
+                      return (
+                        <TableHead key={cell.id} scope="row" className="person" title={row.original.name}>
+                          <table.FlexRender cell={cell} />
+                        </TableHead>
+                      )
+                    }
+                    if (index === undefined) {
+                      return (
+                        <TableCell key={cell.id} className="capacity-hours">
+                          <table.FlexRender cell={cell} />
+                        </TableCell>
+                      )
+                    }
+                    const week = row.original.weeks[index]
+                    const allocated = week.allocatedHours
+                    const capacity = row.original.weeklyHours
+                    const over = isOver(allocated, capacity)
+                    const load = capacity > 0 ? Math.min(allocated / capacity, 1) : allocated > 0 ? 1 : 0
+                    const className = ['allocation', over && 'over', allocated === 0 && 'empty', index === currentWeek && 'current']
+                      .filter(Boolean).join(' ')
+                    const title = `Week of ${formatLongDate(week.weekStart)}: ${hours.format(allocated)} h allocated of ${hours.format(capacity)} h${over ? ` (${hours.format(allocated - capacity)} h over)` : ''}`
                     return (
-                      <TableHead key={cell.id} scope="row" className="person" title={row.original.name}>
-                        <table.FlexRender cell={cell} />
-                      </TableHead>
-                    )
-                  }
-                  if (index === undefined) {
-                    return (
-                      <TableCell key={cell.id} className="capacity-hours">
+                      <TableCell key={cell.id} className={className} style={{ '--load': load } as CSSProperties} title={title}>
                         <table.FlexRender cell={cell} />
                       </TableCell>
                     )
-                  }
-                  const week = row.original.weeks[index]
-                  const allocated = week.allocatedHours
-                  const capacity = row.original.weeklyHours
-                  const over = isOver(allocated, capacity)
-                  const load = capacity > 0 ? Math.min(allocated / capacity, 1) : allocated > 0 ? 1 : 0
-                  const className = ['allocation', over && 'over', allocated === 0 && 'empty', index === currentWeek && 'current']
-                    .filter(Boolean).join(' ')
-                  const title = `Week of ${formatLongDate(week.weekStart)}: ${hours.format(allocated)} h allocated of ${hours.format(capacity)} h${over ? ` (${hours.format(allocated - capacity)} h over)` : ''}`
-                  return (
-                    <TableCell key={cell.id} className={className} style={{ '--load': load } as CSSProperties} title={title}>
-                      <table.FlexRender cell={cell} />
-                    </TableCell>
-                  )
-                })}
-              </TableRow>
-            ))}
+                  })}
+                </TableRow>
+              )
+            })}
+            {padBottom > 0 && <tr className="spacer" aria-hidden><td colSpan={columnCount} style={{ height: padBottom }} /></tr>}
           </TableBody>
         </Table>
       </div>
