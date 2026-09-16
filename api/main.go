@@ -64,3 +64,9 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
 }
+
+// writeError sends {"error": message}. The message is shown to users, so
+// never pass internal error text (SQL, driver errors) through it — log those.
+func writeError(w http.ResponseWriter, status int, message string) {
+	writeJSON(w, status, map[string]string{"error": message})
+}
