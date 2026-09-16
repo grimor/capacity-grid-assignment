@@ -67,3 +67,22 @@ export function capacityQuery(from: string, to: string) {
       getJSON<CapacityResponse>(`/api/capacity?${new URLSearchParams({ from, to })}`, signal),
   })
 }
+
+// Person mirrors personResponse in api/people.go.
+export type Person = {
+  id: number
+  name: string
+  weeklyHours: number
+}
+
+export async function updateWeeklyHours(id: number, weeklyHours: number): Promise<Person> {
+  const res = await fetch(`/api/people/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ weeklyHours }),
+  })
+  if (!res.ok) {
+    throw new ApiError(res.status, await errorMessage(res))
+  }
+  return (await res.json()) as Person
+}

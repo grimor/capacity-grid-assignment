@@ -349,3 +349,32 @@ button {
     @apply font-sans;
   }
 }
+
+/* Fits the 20px line so editing doesn't change the row height. */
+.capacity-editor {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.capacity-editor input {
+  box-sizing: border-box;
+  width: 4.5rem;
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: Canvas;
+  text-align: right;
+  font: inherit;
+}
+
+.capacity-editor input[aria-invalid="true"] {
+  border-color: var(--over-fg);
+  color: var(--over-fg);
+}
+
+.capacity-editor .unit {
+  color: var(--grid-muted);
+}

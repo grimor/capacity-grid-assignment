@@ -3,6 +3,7 @@ import { createColumnHelper, tableFeatures, useTable } from '@tanstack/react-tab
 import { useMemo, useState, type CSSProperties } from 'react'
 import { capacityQuery, type CapacityResponse, type PersonCapacity } from './api'
 import { type DateRange, formatLongDate, formatShortDate, isoWeek, startOfWeek, today } from './dates'
+import { CapacityEditor } from './CapacityEditor'
 import { RangeControls } from './RangeControls'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -71,7 +72,10 @@ function CapacityTable({ data, overOnly, onOverOnlyChange, loading, stale }: Tab
       columnHelper.accessor('name', { header: 'Person' }),
       columnHelper.accessor('weeklyHours', {
         header: 'Capacity',
-        cell: ({ getValue }) => `${hours.format(getValue())} h`,
+        cell: ({ row }) => {
+          const { id, name, weeklyHours } = row.original
+          return <CapacityEditor key={weeklyHours} id={id} name={name} weeklyHours={weeklyHours} />
+        },
       }),
       ...data.weekStarts.map((weekStart, index) =>
         columnHelper.display({
